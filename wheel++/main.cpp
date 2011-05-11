@@ -2,18 +2,7 @@
 #include <WindowsX.h>
 #include "Util.h"
 #include "resource.h"
-
-// グローバル変数:
-TCHAR szTitle[256]=L"wheel++"; // タイトル バーのテキスト
-TCHAR szWindowClass[256]=L"wheelWindowClass"; // メイン ウィンドウ クラス名
-HWND g_hWnd = NULL;
-HINSTANCE g_hInstance = NULL; // 現在のインターフェイス
-
-// このコード モジュールに含まれる関数の宣言を転送します:
-ATOM MyRegisterClass(HINSTANCE hInstance);
-BOOL InitInstance(HINSTANCE, int);
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
+#include <exception>
 
 #ifdef _WIN64
 #pragma comment(lib, "WndProcHack64")
@@ -22,6 +11,22 @@ INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 #endif
 DLLIMPORT BOOL StartHook(HWND hWnd);
 DLLIMPORT BOOL StopHook();
+
+#define CLASSNAME L"wheel++"
+#define MUTEX_NAME CLASSNAME
+
+// グローバル変数:
+TCHAR szTitle[]=CLASSNAME; // タイトル バーのテキスト
+TCHAR szWindowClass[]=CLASSNAME; // メイン ウィンドウ クラス名
+HWND g_hWnd = NULL;
+HINSTANCE g_hInstance = NULL; // 現在のインターフェイス
+
+// このコード モジュールに含まれる関数の宣言を転送します:
+ATOM MyRegisterClass(HINSTANCE hInstance);
+BOOL InitInstance(HINSTANCE, int);
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
+HANDLE g_hMutex = INVALID_HANDLE_VALUE;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
@@ -34,11 +39,20 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	// グローバル文字列を初期化しています。
 	MyRegisterClass(hInstance);
 
+	// 多重起動防止
+	CMutex mutex;
+	try{
+		mutex.createMutex(MUTEX_NAME);
+	}catch(std::exception e){
+		::ErrorMessageBox(L"多重起動です");
+		exit(0);
+	}
+
 	// アプリケーションの初期化を実行します:
 	if (!InitInstance (hInstance, nCmdShow)){
 		return FALSE;
 	}
-
+	
 	// メイン メッセージ ループ:
 	while (GetMessage(&msg, NULL, 0, 0)){
 		if (!TranslateAccelerator(msg.hwnd, NULL, &msg)){
@@ -46,6 +60,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 			DispatchMessage(&msg);
 		}
 	}
+
 	return (int) msg.wParam;
 }
 

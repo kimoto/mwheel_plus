@@ -67,3 +67,27 @@ LPTSTR GetBackupFilePath(LPCTSTR filePath, LPCTSTR backupExt);
 BOOL BackupFile(LPCTSTR filePath, LPCTSTR backupExt);
 BOOL RestoreFile(LPCTSTR filePath, LPCTSTR backupExt);
 LPTSTR GetWindowTitle(HWND hWnd);
+
+// 多重起動防止用簡易クラス
+#include <exception>
+class CMutex{
+private:
+	HANDLE m_hMutex;
+public:
+	CMutex(){
+	}
+	
+	~CMutex(){
+		::ReleaseMutex(this->m_hMutex);
+		::CloseHandle(this->m_hMutex);
+	}
+
+	void createMutex(LPCTSTR mutexName){
+		this->m_hMutex = CreateMutex(NULL, TRUE, mutexName);
+		if(GetLastError() == ERROR_ALREADY_EXISTS){
+			ReleaseMutex(this->m_hMutex);
+			CloseHandle(this->m_hMutex);
+			throw ::std::exception();
+		}
+	}
+};
