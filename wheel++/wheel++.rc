@@ -1,0 +1,15 @@
+//Microsoft Visual C++ で生成されたリソース スクリプトです。
+//
+#include <windows.h>
+#include "resource.h"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// アイコン
+//
+
+// アプリケーションのアイコンをすべてのシステム上で維持するために、最も小さい
+// ID 値のアイコンが最初に配置されます。
+
+IDI_MAIN        ICON         "mouse.ico"
+IDI_MAIN_STOP	ICON		 "mouse_stop.ico"
