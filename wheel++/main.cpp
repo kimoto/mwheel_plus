@@ -124,17 +124,24 @@ LRESULT CALLBACK MouseHookProc( int nCode, WPARAM wp, LPARAM lp)
 	return CallNextHookEx( g_mouseHook, nCode, wp, lp );
 }
 
-void StartHook(HWND hWnd)
+void StopHook()
 {
-	g_mouseHook = ::SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, ::g_hInstance, 0);
-	if(!g_mouseHook){
-		::ShowLastError();
+	if(::g_mouseHook){
+		if(!::UnhookWindowsHookEx(::g_mouseHook)){
+			::ShowLastError();
+		}
+		::g_mouseHook = NULL;
 	}
 }
 
-void StopHook()
+void StartHook(HWND hWnd)
 {
-	if(!::UnhookWindowsHookEx(::g_mouseHook)){
+	if(g_mouseHook){
+		::StopHook();
+	}
+
+	g_mouseHook = ::SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, ::g_hInstance, 0);
+	if(!g_mouseHook){
 		::ShowLastError();
 	}
 }
@@ -145,11 +152,9 @@ void toggleHook(HWND hWnd)
 	if(bToggle){
 		StartHook(hWnd);
 		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN);
-		::trace(L"hook start\n");
 	}else{
 		StopHook();
 		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN_STOP);
-		::trace(L"hook stop\n");
 	}
 	bToggle = !bToggle;
 }
