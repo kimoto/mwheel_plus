@@ -742,8 +742,11 @@ void TasktrayDeleteIcon(HWND hWnd, UINT id)
 	nid.hWnd = hWnd;				// メインウィンドウハンドル
 	nid.uID = id;			// コントロールID
 	
+	/*
 	if( !::Shell_NotifyIcon(NIM_DELETE, &nid) )
 		::ShowLastError();
+		*/
+	::Shell_NotifyIcon(NIM_DELETE, &nid);
 }
 
 HWND WindowFromCursorPos()

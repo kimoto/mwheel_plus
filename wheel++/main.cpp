@@ -147,15 +147,23 @@ void StartHook(HWND hWnd)
 }
 
 bool bToggle = false;
+// トグルフラグの状態によってタスクトレイのアイコンを返却してくれる関数
+int GetTasktrayIcon()
+{
+	if(::bToggle)
+		return IDI_MAIN;
+	else
+		return IDI_MAIN_STOP;
+}
+
 void toggleHook(HWND hWnd)
 {
-	if(bToggle){
+	if(bToggle)
 		StartHook(hWnd);
-		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN);
-	}else{
-		StopHook();
-		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN_STOP);
-	}
+	else
+		StopHook();	
+	
+	::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, ::GetTasktrayIcon());
 	bToggle = !bToggle;
 }
 
@@ -212,10 +220,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 0;
 	default:
 		if(message == msgTaskbarCreated){
-			if(bToggle)
-				TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, IDI_MAIN, S_TASKTRAY_TIPS, hWnd);
-			else
-				TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, IDI_MAIN_STOP, S_TASKTRAY_TIPS, hWnd);
+			TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, ::GetTasktrayIcon(), S_TASKTRAY_TIPS, hWnd);
 		}
 	}
 	return ::DefWindowProc(hWnd, message, wParam, lParam);
