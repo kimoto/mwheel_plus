@@ -2,11 +2,6 @@
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C++ Express 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "wheel++", "wheel++\wheel++.vcxproj", "{ACBA235A-3F1B-4417-A8C5-7B2846CBFBBF}"
-	ProjectSection(ProjectDependencies) = postProject
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891} = {838E7CCB-94D4-453E-8B61-E2FB7D28A891}
-	EndProjectSection
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "WndProcHack", "WndProcHack\WndProcHack\WndProcHack.vcxproj", "{838E7CCB-94D4-453E-8B61-E2FB7D28A891}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -24,14 +19,6 @@ Global
 		{ACBA235A-3F1B-4417-A8C5-7B2846CBFBBF}.Release|Win32.Build.0 = Release|Win32
 		{ACBA235A-3F1B-4417-A8C5-7B2846CBFBBF}.Release|x64.ActiveCfg = Release|x64
 		{ACBA235A-3F1B-4417-A8C5-7B2846CBFBBF}.Release|x64.Build.0 = Release|x64
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Debug|Win32.ActiveCfg = Debug|Win32
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Debug|Win32.Build.0 = Debug|Win32
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Debug|x64.ActiveCfg = Debug|x64
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Debug|x64.Build.0 = Debug|x64
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Release|Win32.ActiveCfg = Release|Win32
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Release|Win32.Build.0 = Release|Win32
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Release|x64.ActiveCfg = Release|x64
-		{838E7CCB-94D4-453E-8B61-E2FB7D28A891}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

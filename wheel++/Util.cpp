@@ -4,15 +4,26 @@
 #define FORMAT_BUFFER_SIZE 1024
 #define MCI_LASTERROR_BUFSIZE 1024
 
+// GlobalAllocのインターフェースで、heapを確保する関数
+// 過去のコード書き直すのめんどかったのでつくった
+// 名前はおかしい
+// 引数のflagsは完全に無視されます
+LPVOID GlobalAllocHeap(UINT flags, SIZE_T size)
+{
+	return ::HeapAlloc(::GetProcessHeap(), HEAP_ZERO_MEMORY | HEAP_GENERATE_EXCEPTIONS, size);
+}
+
 void trace(LPCTSTR format, ...)
 {
+#ifdef _DEBUG
 	va_list arg;
 	va_start(arg, format);
 	
 	TCHAR buffer[TRACE_BUFFER_SIZE];
-	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, TRACE_BUFFER_SIZE, format, arg);
+	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
 	::OutputDebugString(buffer);	
 	va_end(arg);
+#endif
 }
 
 void DrawFormatText(HDC hdc, LPRECT rect, UINT type, LPCTSTR format, ...)
@@ -21,7 +32,7 @@ void DrawFormatText(HDC hdc, LPRECT rect, UINT type, LPCTSTR format, ...)
 	va_start(arg, format);
 	
 	TCHAR buffer[TRACE_BUFFER_SIZE];
-	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, TRACE_BUFFER_SIZE, format, arg);
+	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
 	::DrawText(hdc, buffer, lstrlen(buffer), rect, type);	
 	va_end(arg);
 }
@@ -32,7 +43,7 @@ void TextFormatOut(HDC hdc, int x, int y, LPCTSTR format, ...)
 	va_start(arg, format);
 	
 	TCHAR buffer[FORMAT_BUFFER_SIZE];
-	::_vsnwprintf_s(buffer, FORMAT_BUFFER_SIZE, FORMAT_BUFFER_SIZE, format, arg);
+	::_vsnwprintf_s(buffer, FORMAT_BUFFER_SIZE, _TRUNCATE, format, arg);
 	::TextOut(hdc, x, y, buffer, lstrlen(buffer));
 	va_end(arg);
 }
@@ -78,7 +89,7 @@ void drawRectColor(HDC hdc, int x, int y, int width, int height, COLORREF color,
 
 void mciShowLastError(MMRESULT result)
 {
-	LPTSTR lpstr = (LPWSTR)::GlobalAlloc(GMEM_FIXED, MCI_LASTERROR_BUFSIZE);
+	LPTSTR lpstr = (LPTSTR)::GlobalAllocHeap(GMEM_FIXED, MCI_LASTERROR_BUFSIZE);
 	mciGetErrorString(result, lpstr, MCI_LASTERROR_BUFSIZE);
 	::MessageBox(NULL, lpstr, L"ERROR", MB_OK);
 }
@@ -411,7 +422,7 @@ LPTSTR GetKeyNameTextEx(UINT vk)
 		break;
 	}
 
-	LPTSTR buffer = (LPTSTR)::GlobalAlloc(GMEM_FIXED | GMEM_ZEROINIT, KEYNAMETEXT_BUFFER_SIZE);
+	LPTSTR buffer = (LPTSTR)::GlobalAllocHeap(GMEM_FIXED | GMEM_ZEROINIT, KEYNAMETEXT_BUFFER_SIZE);
 	::GetKeyNameText(lParam, buffer, KEYNAMETEXT_BUFFER_SIZE);
 	return buffer;
 }
@@ -428,7 +439,7 @@ LPTSTR GetKeyConfigString(int vk, int opt_vk)
 	LPTSTR vk_str = ::GetKeyNameTextEx(vk);
 	LPTSTR opt_vk_str = ::GetKeyNameTextEx(opt_vk);
 
-	LPTSTR s_buffer = (LPTSTR)::GlobalAlloc(GMEM_FIXED | GMEM_ZEROINIT, 256);
+	LPTSTR s_buffer = (LPTSTR)::GlobalAllocHeap(GMEM_FIXED | GMEM_ZEROINIT, 256);
 	if(opt_vk != NULL){ // CONTROL,ALTキーが設定されていた場合はALT + Bみたいな文字列になる
 		::wsprintf(s_buffer, L"%s + %s", opt_vk_str, vk_str);
 	}else{
@@ -447,7 +458,7 @@ void ErrorMessageBox(LPCTSTR format, ...)
 	va_start(arg, format);
 
 	TCHAR buffer[TRACE_BUFFER_SIZE];
-	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, TRACE_BUFFER_SIZE, format, arg);
+	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
 	::MessageBox(NULL, buffer, L"Error", MB_OK);
 	va_end(arg);
 }
@@ -544,7 +555,7 @@ BOOL SetGamma(double gamma)
 
 BOOL SetWindowTopMost(HWND hWnd)
 {
-	return ::SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOREDRAW | SWP_NOACTIVATE | SWP_NOCOPYBITS | SWP_NOSENDCHANGING);
+	return SetWindowPos(hWnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_SHOWWINDOW|SWP_NOMOVE|SWP_NOSIZE);
 }
 
 LPTSTR sprintf_alloc(LPTSTR format, ...)
@@ -552,8 +563,8 @@ LPTSTR sprintf_alloc(LPTSTR format, ...)
 	va_list arg;
 	va_start(arg, format);
 	
-	LPTSTR buffer = (LPTSTR)::GlobalAlloc(GMEM_FIXED | GMEM_ZEROINIT, TRACE_BUFFER_SIZE * sizeof(TCHAR));
-	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, TRACE_BUFFER_SIZE, format, arg);
+	LPTSTR buffer = (LPTSTR)::GlobalAllocHeap(GMEM_FIXED | GMEM_ZEROINIT, TRACE_BUFFER_SIZE * sizeof(TCHAR));
+	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
 	va_end(arg);
 
 	return buffer;
@@ -565,7 +576,7 @@ BOOL SetWindowTextFormat(HWND hWnd, LPTSTR format, ...)
 	va_start(arg, format);
 
 	TCHAR buffer[TRACE_BUFFER_SIZE];
-	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, TRACE_BUFFER_SIZE, format, arg);
+	::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
 	::SetWindowText(hWnd, buffer);
 	va_end(arg);
 
@@ -670,7 +681,326 @@ BOOL RestoreFile(LPCTSTR filePath, LPCTSTR backupExt=L".bak")
 
 LPTSTR GetWindowTitle(HWND hWnd)
 {
-	LPTSTR buffer = (LPTSTR)::GlobalAlloc(GMEM_FIXED, 256 * sizeof(TCHAR));
+	LPTSTR buffer = (LPTSTR)::GlobalAllocHeap(GMEM_FIXED, 256 * sizeof(TCHAR));
 	::GetWindowText(hWnd, buffer, 256);
 	return buffer;
+}
+
+// 指定されたIDのコンテキストメニューを表示します
+BOOL ShowContextMenu(HWND hWnd, UINT menuID)
+{
+	// 実質メモリリークしてるけど何回繰り返しても一定値から増えないから気にしてない
+	// おそらくwindows側で同じインスタンスが存在しないように管理してくれてる
+	HMENU hMenu = ::LoadMenu(NULL, MAKEINTRESOURCE(menuID));
+	HMENU hSubMenu = ::GetSubMenu(hMenu, 0);
+	
+	POINT point;
+	::GetCursorPos(&point);
+
+	::SetForegroundWindow(hWnd);
+
+	::TrackPopupMenu(hSubMenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, 0, hWnd, NULL);
+	::PostMessage(hWnd, WM_NULL, 0, 0);
+	return TRUE;
+}
+
+void TasktrayAddIcon(HINSTANCE hInstance, UINT msg, UINT id, UINT iconId, LPCTSTR tips, HWND hWnd)
+{
+	NOTIFYICONDATA nid;
+	nid.cbSize           = sizeof( NOTIFYICONDATA );
+	nid.uFlags           = (NIF_ICON|NIF_MESSAGE|NIF_TIP);
+	nid.hWnd             = hWnd;           // ウインドウ・ハンドル
+	nid.hIcon            = ::LoadIcon(hInstance, MAKEINTRESOURCE(iconId));          // アイコン・ハンドル
+	nid.uID              = id; 	// アイコン識別子の定数
+	nid.uCallbackMessage = msg;    // 通知メッセージの定数
+	lstrcpy(nid.szTip, tips);  // チップヘルプの文字列
+
+	// アイコンの変更
+	if( !Shell_NotifyIcon( NIM_ADD, &nid ) )
+		::ShowLastError();
+}
+
+void TasktrayModifyIcon(HINSTANCE hInstance, UINT msg, UINT id, HWND hWnd,  LPCTSTR tips, UINT icon)
+{
+	NOTIFYICONDATA nid;
+	nid.cbSize           = sizeof( NOTIFYICONDATA );
+	nid.uFlags           = (NIF_ICON|NIF_MESSAGE|NIF_TIP);
+	nid.hWnd             = hWnd;           // ウインドウ・ハンドル
+	nid.hIcon            = ::LoadIcon(hInstance, MAKEINTRESOURCE(icon));          // アイコン・ハンドル
+	nid.uID              = id; 	// アイコン識別子の定数
+	nid.uCallbackMessage = msg;    // 通知メッセージの定数
+	lstrcpy( nid.szTip, tips );  // チップヘルプの文字列
+
+	if( !::Shell_NotifyIcon(NIM_MODIFY, &nid) )
+		::ShowLastError();
+}
+
+void TasktrayDeleteIcon(HWND hWnd, UINT id)
+{
+	NOTIFYICONDATA nid; 
+	nid.cbSize = sizeof(NOTIFYICONDATA); 
+	nid.hWnd = hWnd;				// メインウィンドウハンドル
+	nid.uID = id;			// コントロールID
+	
+	if( !::Shell_NotifyIcon(NIM_DELETE, &nid) )
+		::ShowLastError();
+}
+
+HWND WindowFromCursorPos()
+{
+	POINT pt;
+	::GetCursorPos(&pt);
+	return ::WindowFromPoint(pt);
+}
+
+void NoticeRedraw(HWND hWnd)
+{
+	::InvalidateRect(hWnd, NULL, FALSE);
+	::UpdateWindow(hWnd);
+	::RedrawWindow(hWnd, NULL, NULL, RDW_FRAME | RDW_INVALIDATE | RDW_UPDATENOW | RDW_ALLCHILDREN);
+	::SendMessage(hWnd, WM_PAINT, 0, 0);
+}
+
+void RectangleNormalize(RECT *rect)
+{
+	// 常に左上基点の構造体に変換
+	if(rect->right - rect->left < 0){
+		// 左右逆
+		int tmp = rect->left;
+		rect->left = rect->right;
+		rect->right = tmp;
+	}
+	if(rect->bottom - rect->top < 0){
+		int tmp = rect->top;
+		rect->top = rect->bottom;
+		rect->bottom = tmp;
+	}
+}
+
+std::wstring str2wstr(std::string str)
+{
+	// そのサイズだけ確保し、変換します
+	wchar_t *wbuf = NULL;
+
+	// マルチバイト文字を変換するに当たって、変換後の文字数を調べます
+	int need_buf_size = ::MultiByteToWideChar(0, 0, str.c_str(), str.size(), NULL, 0);
+
+	wbuf = new wchar_t[need_buf_size];
+	::MultiByteToWideChar(CP_UTF8, 0, str.c_str(), str.size(), wbuf, need_buf_size);
+
+	// 返却するためにオブジェクトにくるみます
+	std::wstring result;
+	result += wbuf;
+	delete wbuf;
+	return result;
+}
+
+// 実行ファイルのディレクトリに、config.ini(デフォルト)を付加した物になります
+// 動的にバッファを格納して返却するので、解放必須です
+LPTSTR GetConfigPath(LPTSTR fileName)
+{
+	LPTSTR lpExecDirectory = (LPTSTR)::GlobalAlloc(GMEM_FIXED, MAX_PATH * sizeof(TCHAR));
+	if( ::GetExecuteDirectory(lpExecDirectory, MAX_PATH) ) {
+		LPTSTR lpConfigPath = sprintf_alloc(L"%s%s", lpExecDirectory, fileName);
+		::GlobalFree(lpExecDirectory);
+		return lpConfigPath;
+	} else {
+		::GlobalFree(lpExecDirectory);
+		::ShowLastError();
+		return NULL;
+	}
+}
+
+HHOOK g_mouseProxyHook = NULL;
+HWND g_mouseProxyHwnd = NULL;
+LRESULT CALLBACK MouseEventProxyHook(int nCode, WPARAM wp, LPARAM lp)
+{
+	if( nCode < 0 ) //nCodeが負、HC_NOREMOVEの時は何もしない
+		return CallNextHookEx(g_mouseProxyHook, nCode, wp, lp );
+
+	if( nCode == HC_ACTION){
+		MSLLHOOKSTRUCT *msg = (MSLLHOOKSTRUCT *)lp;
+		if( wp == WM_MOUSEMOVE ){
+			::PostMessage(g_mouseProxyHwnd, wp, 0, MAKELPARAM(msg->pt.x, msg->pt.y));
+			return CallNextHookEx(::g_mouseProxyHook, nCode, 0, lp);
+		}
+
+		if( wp == WM_LBUTTONDOWN || wp == WM_LBUTTONUP ||
+			wp == WM_RBUTTONDOWN || wp == WM_RBUTTONUP ){
+				::PostMessage(g_mouseProxyHwnd, wp, 0, MAKELPARAM(msg->pt.x, msg->pt.y));
+				return TRUE;
+		}
+	}
+	return CallNextHookEx(::g_mouseProxyHook, nCode, 0, lp);
+}
+
+BOOL StartMouseEventProxy(HWND hWnd, HINSTANCE hInstance)
+{
+	::g_mouseProxyHwnd = hWnd;
+	::g_mouseProxyHook = ::SetWindowsHookEx(WH_MOUSE_LL, MouseEventProxyHook, hInstance, 0);
+	if(!::g_mouseProxyHook){
+		return FALSE;
+	}
+	return TRUE;
+}
+
+BOOL StopMouseEventProxy()
+{
+	if(g_mouseProxyHook){
+		if(!UnhookWindowsHookEx(g_mouseProxyHook)){
+			return FALSE;
+		}
+		g_mouseProxyHook = NULL;
+	}
+	::g_mouseProxyHwnd = NULL;
+	return TRUE;
+}
+
+BOOL HighlightWindow(HWND hWnd, int bold, COLORREF color)
+{
+	HDC hdc = ::GetWindowDC(hWnd);
+	if(hdc == NULL){
+		return FALSE;
+	}
+
+	HPEN hPen = CreatePen(PS_SOLID, bold, color);
+	HBRUSH hBrush = (HBRUSH)::GetStockObject(HOLLOW_BRUSH);
+
+	HGDIOBJ hPrevPen = ::SelectObject(hdc, hPen);
+	HGDIOBJ hPrevBrush = ::SelectObject(hdc, hBrush);
+
+	RECT rect;
+	::GetWindowRect(hWnd, &rect);
+	::Rectangle(hdc, 0, 0, rect.right - rect.left, rect.bottom - rect.top);
+
+	::SelectObject(hdc, hPrevPen);
+	::SelectObject(hdc, hPrevBrush);
+
+	::DeleteObject(hPen);
+	::DeleteObject(hBrush);
+
+	::ReleaseDC(hWnd, hdc);
+	return TRUE;
+}
+
+BOOL HighlightWindow(HWND hWnd)
+{
+	return ::HighlightWindow(hWnd, 5, RGB(0,0,0));
+}
+
+void DuplicateBootCheck(LPCTSTR mutexName)
+{
+	CMutex mutex;
+	try{
+		mutex.createMutex(mutexName);
+	}catch(std::exception e){
+		::ErrorMessageBox(L"多重起動です");
+		exit(0);
+	}
+}
+
+void ShadowTextFormatOut(HDC hdc, int x, int y, int w, COLORREF shadow, COLORREF color, LPCTSTR format, ...)
+{
+	va_list arg;
+	va_start(arg, format);
+
+	TCHAR buffer[256];
+	::SetBkMode(hdc, TRANSPARENT);
+	::_vsnwprintf_s(buffer, 256, _TRUNCATE, format, arg);
+
+	// 影の描画
+	::SetTextColor(hdc, shadow);
+	::TextOut(hdc, x + w, y + w, buffer, lstrlen(buffer));
+
+	// 本体の描画
+	::SetTextColor(hdc, color);
+	::TextOut(hdc, x, y, buffer, lstrlen(buffer));
+
+	va_end(arg);
+}
+
+
+void StickRect(RECT *selected, RECT *target, int w_px, int h_px)
+{
+	// 左側
+	if(target->left <= selected->left && selected->left <= w_px){
+		selected->right = target->left + (selected->right - selected->left);
+		selected->left = target->left;
+	}
+	// 上側
+	if(target->top <= selected->top && selected->top <= h_px){
+		selected->bottom = target->top + (selected->bottom - selected->top);
+		selected->top = target->top;
+	}
+	// 下側
+	if(target->bottom - h_px <= selected->bottom && selected->bottom <= target->bottom){
+		selected->top = target->bottom - (selected->bottom - selected->top);
+		selected->bottom = target->bottom;
+	}
+	// 右側
+	if(target->right - w_px <= selected->right && selected->right <= target->right){
+		selected->left = target->right - (selected->right - selected->left);
+		selected->right = target->right;
+	}
+
+	// 上下反転したときの上側
+	if(selected->bottom < target->top + h_px){
+		selected->top = target->top + (selected->top - selected->bottom);
+		selected->bottom = target->top;
+	}
+	// 上下反転したときの下側
+	if(target->bottom - h_px <= selected->top){
+		selected->bottom = target->bottom - (selected->top - selected->bottom);
+		selected->top = target->bottom;
+	}
+	// 左右反転したときの左側
+	if(selected->right < target->left + w_px){
+		selected->left = selected->left - selected->right;
+		selected->right = target->left;
+	}
+	// 左右反転したときの右側
+	if(target->right - w_px < selected->left){
+		selected->right = target->right - (selected->left - selected->right);
+		selected->left = target->right;
+	}
+}
+
+// 指定されたウインドウ範囲から出られなくします
+void CorrectRect(RECT *selected, RECT *target)
+{
+	// 左側
+	if(selected->left < target->left){
+		selected->right = target->left + (selected->right - selected->left);
+		selected->left = target->left;
+	}
+	// 上側
+	if(selected->top < target->top){
+		selected->bottom = target->top + (selected->bottom - selected->top);
+		selected->top = target->top;
+	}
+	// 右側
+	// ...
+
+	// 右側(逆版)
+	if(selected->left > target->right){
+		int w = selected->left - selected->right;
+		selected->left = target->right;
+		selected->right = selected->left - w;
+	}
+
+	// 下側
+	/*
+	if(selected->bottom > target->bottom){
+	int h = selected->bottom - selected->top;
+	selected->bottom = target->bottom;
+	selected->top = selected->bottom - h;
+	}
+	*/
+
+	// 下側(逆版)
+	if(selected->top > target->bottom){
+		int h = selected->top - selected->bottom;
+		selected->top = target->bottom;
+		selected->bottom = selected->top - h;
+	}
 }

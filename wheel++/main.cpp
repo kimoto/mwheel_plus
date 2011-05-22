@@ -4,16 +4,15 @@
 #include "resource.h"
 #include <exception>
 
-#ifdef _WIN64
-#pragma comment(lib, "WndProcHack64")
-#else
-#pragma comment(lib, "WndProcHack32")
-#endif
-DLLIMPORT BOOL StartHook(HWND hWnd);
-DLLIMPORT BOOL StopHook();
-
 #define CLASSNAME L"wheel++"
 #define MUTEX_NAME CLASSNAME
+
+#define WM_TASKTRAY (WM_APP + 1)
+#define ID_TASKTRAY 1
+#define S_TASKTRAY_TIPS L"wheel++"
+
+#define IDM_TOGGLE 1
+#define IDM_EXIT 2
 
 // グローバル変数:
 TCHAR szTitle[]=CLASSNAME; // タイトル バーのテキスト
@@ -40,13 +39,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	MyRegisterClass(hInstance);
 
 	// 多重起動防止
-	CMutex mutex;
-	try{
-		mutex.createMutex(MUTEX_NAME);
-	}catch(std::exception e){
-		::ErrorMessageBox(L"多重起動です");
-		exit(0);
-	}
+	::DuplicateBootCheck(MUTEX_NAME);
 
 	// アプリケーションの初期化を実行します:
 	if (!InitInstance (hInstance, nCmdShow)){
@@ -85,51 +78,6 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 	return RegisterClassEx(&wcex);
 }
 
-void TasktrayAddIcon(HINSTANCE hInstance, HWND hWnd)
-{
-#define WM_TASKTRAY (WM_APP + 1)
-#define ID_TASKTRAY 1
-#define S_TASKTRAY_TIPS L"wheel++"
-	NOTIFYICONDATA nid;
-	nid.cbSize           = sizeof( NOTIFYICONDATA );
-	nid.uFlags           = (NIF_ICON|NIF_MESSAGE|NIF_TIP);
-	nid.hWnd             = hWnd;           // ウインドウ・ハンドル
-	nid.hIcon            = ::LoadIcon(hInstance, MAKEINTRESOURCE(IDI_MAIN));          // アイコン・ハンドル
-	nid.uID              = ID_TASKTRAY; 	// アイコン識別子の定数
-	nid.uCallbackMessage = WM_TASKTRAY;    // 通知メッセージの定数
-	lstrcpy( nid.szTip, S_TASKTRAY_TIPS );  // チップヘルプの文字列
-
-	// アイコンの変更
-	if( !Shell_NotifyIcon( NIM_ADD, &nid ) )
-		::ShowLastError();
-}
-
-void TasktrayModifyIcon(HINSTANCE hInstance, HWND hWnd, UINT icon)
-{
-	NOTIFYICONDATA nid;
-	nid.cbSize           = sizeof( NOTIFYICONDATA );
-	nid.uFlags           = (NIF_ICON|NIF_MESSAGE|NIF_TIP);
-	nid.hWnd             = hWnd;           // ウインドウ・ハンドル
-	nid.hIcon            = ::LoadIcon(hInstance, MAKEINTRESOURCE(icon));          // アイコン・ハンドル
-	nid.uID              = ID_TASKTRAY; 	// アイコン識別子の定数
-	nid.uCallbackMessage = WM_TASKTRAY;    // 通知メッセージの定数
-	lstrcpy( nid.szTip, S_TASKTRAY_TIPS );  // チップヘルプの文字列
-
-	if( !::Shell_NotifyIcon(NIM_MODIFY, &nid) )
-		::ShowLastError();
-}
-
-void TasktrayDeleteIcon(HWND hWnd)
-{
-	NOTIFYICONDATA nid; 
-	nid.cbSize = sizeof(NOTIFYICONDATA); 
-	nid.hWnd = hWnd;				// メインウィンドウハンドル
-	nid.uID = ID_TASKTRAY;			// コントロールID
-	
-	if( !::Shell_NotifyIcon(NIM_DELETE, &nid) )
-		::ShowLastError();
-}
-
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
 	HWND hWnd;
@@ -145,11 +93,50 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	}
 
 	// アイコンの設定
-	TasktrayAddIcon(g_hInstance, hWnd);
+	TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, IDI_MAIN, S_TASKTRAY_TIPS, hWnd);
 
 	ShowWindow(hWnd, SW_HIDE);
 	UpdateWindow(hWnd);
 	return TRUE;
+}
+
+HHOOK g_mouseHook = NULL;
+LRESULT CALLBACK MouseHookProc( int nCode, WPARAM wp, LPARAM lp)
+{
+	if( nCode < 0 ) //nCodeが負、HC_NOREMOVEの時は何もしない
+		return CallNextHookEx( g_mouseHook, nCode, wp, lp );
+
+	if( nCode == HC_ACTION && wp == WM_MOUSEWHEEL){
+		MSLLHOOKSTRUCT *msg = (MSLLHOOKSTRUCT *)lp;
+		HWND target = ::WindowFromPoint(msg->pt);
+
+		DWORD delta = HIWORD(msg->mouseData);
+		DWORD key = LOWORD(msg->mouseData);
+		DWORD x = msg->pt.x;
+		DWORD y = msg->pt.y;
+
+		WPARAM w = MAKEWPARAM(key, delta);
+		LPARAM l = MAKELPARAM(x, y);
+
+		::PostMessage(target, WM_MOUSEWHEEL, w, l);
+		return TRUE;
+	}
+	return CallNextHookEx( g_mouseHook, nCode, wp, lp );
+}
+
+void StartHook(HWND hWnd)
+{
+	g_mouseHook = ::SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, ::g_hInstance, 0);
+	if(!g_mouseHook){
+		::ShowLastError();
+	}
+}
+
+void StopHook()
+{
+	if(!::UnhookWindowsHookEx(::g_mouseHook)){
+		::ShowLastError();
+	}
 }
 
 bool bToggle = false;
@@ -157,18 +144,15 @@ void toggleHook(HWND hWnd)
 {
 	if(bToggle){
 		StartHook(hWnd);
-		::TasktrayModifyIcon(g_hInstance, hWnd, IDI_MAIN);
+		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN);
 		::trace(L"hook start\n");
 	}else{
 		StopHook();
-		::TasktrayModifyIcon(g_hInstance, hWnd, IDI_MAIN_STOP);
+		::TasktrayModifyIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, hWnd, S_TASKTRAY_TIPS, IDI_MAIN_STOP);
 		::trace(L"hook stop\n");
 	}
 	bToggle = !bToggle;
 }
-
-#define IDM_TOGGLE 1
-#define IDM_EXIT 2
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -192,7 +176,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		msgTaskbarCreated = RegisterWindowMessage(L"TaskbarCreated");
 		return 0;
 	case WM_DESTROY:
-		::TasktrayDeleteIcon(hWnd);
+		::TasktrayDeleteIcon(hWnd, ID_TASKTRAY);
 		::StopHook();
 		::PostQuitMessage(0);
 		return 0;
@@ -223,7 +207,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		return 0;
 	default:
 		if(message == msgTaskbarCreated){
-			TasktrayAddIcon(g_hInstance, hWnd);
+			if(bToggle)
+				TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, IDI_MAIN, S_TASKTRAY_TIPS, hWnd);
+			else
+				TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, IDI_MAIN_STOP, S_TASKTRAY_TIPS, hWnd);
 		}
 	}
 	return ::DefWindowProc(hWnd, message, wParam, lParam);
