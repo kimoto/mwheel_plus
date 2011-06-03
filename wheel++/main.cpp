@@ -134,7 +134,9 @@ void StopHook()
 {
 	if(::g_mouseHook){
 		if(!::UnhookWindowsHookEx(::g_mouseHook)){
+#ifdef _DEBUG
 			::ShowLastError();
+#endif
 		}
 		::g_mouseHook = NULL;
 	}
@@ -148,7 +150,9 @@ void StartHook(HWND hWnd)
 
 	g_mouseHook = ::SetWindowsHookEx(WH_MOUSE_LL, MouseHookProc, ::g_hInstance, 0);
 	if(!g_mouseHook){
+#ifdef _DEBUG
 		::ShowLastError();
+#endif
 	}
 }
 
