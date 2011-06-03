@@ -39,7 +39,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	MyRegisterClass(hInstance);
 
 	// 多重起動防止
-	::DuplicateBootCheck(MUTEX_NAME);
+  CMutex mutex;
+	try{
+		mutex.createMutex(MUTEX_NAME);
+	}catch(std::exception e){
+		::ErrorMessageBox(L"多重起動です");
+		exit(0);
+	}
 
 	// アプリケーションの初期化を実行します:
 	if (!InitInstance (hInstance, nCmdShow)){
