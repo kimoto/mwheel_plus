@@ -9,7 +9,7 @@
 
 #define WM_TASKTRAY (WM_APP + 1)
 #define ID_TASKTRAY 1
-#define S_TASKTRAY_TIPS L"wheel++"
+#define S_TASKTRAY_TIPS CLASSNAME
 
 #define IDM_TOGGLE 1
 #define IDM_EXIT 2
@@ -25,12 +25,19 @@ ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
-HANDLE g_hMutex = INVALID_HANDLE_VALUE;
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+
+  // ロケールの設定
+  // 日本だったら日本語、それ以外はすべて英語
+  UINT localeId = GetUserDefaultLCID();
+  if(0x411 != localeId){
+    localeId = 0x409; // 日本語以外は英語UIとして表示する
+  }
+  ::SetThreadUILanguage(localeId);
 
 	// TODO: ここにコードを挿入してください。
 	MSG msg;
@@ -43,7 +50,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	try{
 		mutex.createMutex(MUTEX_NAME);
 	}catch(std::exception e){
-		::ErrorMessageBox(L"多重起動です");
+    ::LocaleErrorMsgBox(IDS_DUPLICATE_BOOT_FORMAT, MUTEX_NAME);
 		exit(0);
 	}
 
@@ -90,7 +97,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	g_hInstance = hInstance; // グローバル変数にインスタンス処理を格納します
 
 	hWnd = CreateWindowEx(0, szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, NULL, hInstance, NULL);
-
 	g_hWnd = hWnd;
 
 	if(!hWnd){
@@ -189,20 +195,25 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		hMenu = ::CreateMenu();
 		hSubMenu = ::CreateMenu();
 			
-		//::AppendMenu(hSubMenu, MF_STRING, IDM_TOGGLE, L"トグル");
-		::AppendMenu(hSubMenu, MF_STRING, IDM_EXIT, L"終了");
+    TCHAR buffer[256];
+    LoadString(GetModuleHandle(NULL), IDS_IDM_EXIT, buffer, sizeof(buffer));
+    ::AppendMenu(hSubMenu, MF_STRING, IDM_EXIT, buffer);
 		::AppendMenu(hMenu, MF_POPUP, (UINT)hSubMenu, NULL);
 
 		::StartHook(hWnd);
 
 		// タスクバーのイベント作成
 		msgTaskbarCreated = RegisterWindowMessage(L"TaskbarCreated");
-		return 0;
+		return TRUE;
+  case WM_NCDESTROY:
+    ::DestroyMenu(hMenu);
+    ::DestroyMenu(hSubMenu);
+    ::TasktrayDeleteIcon(hWnd, ID_TASKTRAY);
+    ::StopHook();
+    break;
 	case WM_DESTROY:
-		::TasktrayDeleteIcon(hWnd, ID_TASKTRAY);
-		::StopHook();
-		::PostQuitMessage(0);
-		return 0;
+    ::PostQuitMessage(0);
+		break;
 	case WM_COMMAND:
 		switch(LOWORD(wParam)){
 		case IDM_TOGGLE:
@@ -212,7 +223,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			::DestroyWindow(hWnd);
 			break;
 		}
-		return 0;
+    return TRUE;
 	case WM_TASKTRAY:
 		switch(lParam){
 		case WM_RBUTTONDOWN:
@@ -221,17 +232,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				::GetCursorPos(&point);
 				::SetForegroundWindow(hWnd);
 				TrackPopupMenu(hSubMenu, TPM_LEFTALIGN | TPM_RIGHTBUTTON, point.x, point.y, 0, hWnd, NULL);
+        ::PostMessage(hWnd, WM_NULL, 0, 0);
 			}
 			break;
 		case WM_LBUTTONDBLCLK:
 			::toggleHook(hWnd);
 			break;
 		}
-		return 0;
+    break;
 	default:
 		if(message == msgTaskbarCreated){
 			TasktrayAddIcon(g_hInstance, WM_TASKTRAY, ID_TASKTRAY, ::GetTasktrayIcon(), S_TASKTRAY_TIPS, hWnd);
-		}
+      return TRUE;
+    }
+    return ::DefWindowProc(hWnd, message, wParam, lParam);
 	}
-	return ::DefWindowProc(hWnd, message, wParam, lParam);
+  return TRUE;
 }

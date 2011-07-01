@@ -742,11 +742,8 @@ void TasktrayDeleteIcon(HWND hWnd, UINT id)
 	nid.hWnd = hWnd;				// メインウィンドウハンドル
 	nid.uID = id;			// コントロールID
 	
-	/*
-	if( !::Shell_NotifyIcon(NIM_DELETE, &nid) )
-		::ShowLastError();
-		*/
-	::Shell_NotifyIcon(NIM_DELETE, &nid);
+  if(!Shell_NotifyIcon(NIM_DELETE, &nid))
+    ::ShowLastError();
 }
 
 HWND WindowFromCursorPos()
@@ -1006,4 +1003,19 @@ void CorrectRect(RECT *selected, RECT *target)
 		selected->top = target->bottom;
 		selected->bottom = selected->top - h;
 	}
+}
+
+void LocaleErrorMsgBox(UINT msgId, ...)
+{
+	va_list arg;
+	va_start(arg, msgId);
+
+  TCHAR format[1024];
+  ::LoadString(::GetModuleHandle(NULL), msgId, format, sizeof(format)); 
+
+  TCHAR buffer[1024];
+  ::_vsnwprintf_s(buffer, TRACE_BUFFER_SIZE, _TRUNCATE, format, arg);
+
+  ::MessageBox(NULL, buffer, L"Error", MB_OK);
+  va_end(arg);
 }

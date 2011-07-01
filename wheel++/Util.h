@@ -103,6 +103,8 @@ void ShadowTextFormatOut(HDC hdc, int x, int y, int w, COLORREF shadow, COLORREF
 void StickRect(RECT *selected, RECT *target, int w_px, int h_px);
 void CorrectRect(RECT *selected, RECT *target);
 
+void LocaleErrorMsgBox(UINT msgId, ...);
+
 // 多重起動防止用簡易クラス
 #include <exception>
 class CMutex{
